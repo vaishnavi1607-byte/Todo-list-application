@@ -3,7 +3,9 @@ import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/todos`
-  : 'http://localhost:5001/api/todos'
+  : import.meta.env.PROD
+    ? 'https://todo-api-421f.onrender.com/api/todos'
+    : 'http://localhost:5001/api/todos'
 
 function App() {
   const [todos, setTodos] = useState([])
