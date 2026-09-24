@@ -1,0 +1,16 @@
+{
+  "name": "todo-list-application",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "server": "npm --prefix server start",
+    "client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build",
+    "lint:client": "npm --prefix client run lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

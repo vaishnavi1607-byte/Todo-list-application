@@ -1,7 +1,15 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const cors = require('cors')
+const dns = require('dns')
 require('dotenv').config()
+
+// Configure DNS servers to prevent querySrv ECONNREFUSED on Windows networks
+try {
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1'])
+} catch (e) {
+    console.warn('DNS server configuration warning:', e.message)
+}
 
 const app = express()
 
@@ -14,7 +22,7 @@ const todoSchema = new mongoose.Schema(
     {
         text: {
             type: String,
-            required: true,
+            required: [true, 'Todo text is required'],
             trim: true,
         },
         completed: {
@@ -29,6 +37,9 @@ const Todo = mongoose.model('Todo', todoSchema)
 
 const connectDB = async () => {
     try {
+        if (!process.env.MONGO_URI) {
+            throw new Error('MONGO_URI is not defined in environment variables')
+        }
         const connection = await mongoose.connect(process.env.MONGO_URI, {
             serverSelectionTimeoutMS: 15000,
             retryWrites: true,
@@ -61,9 +72,9 @@ app.get('/api/todos', async (req, res) => {
 
 app.post('/api/todos', async (req, res) => {
     try {
-        const { text, completed } = req.body
+        const { text, completed } = req.body || {}
 
-        if (!text || !text.trim()) {
+        if (!text || typeof text !== 'string' || !text.trim()) {
             return res.status(400).json({ message: 'Todo text is required' })
         }
 
@@ -80,12 +91,29 @@ app.post('/api/todos', async (req, res) => {
 
 app.put('/api/todos/:id', async (req, res) => {
     try {
-        const { text, completed } = req.body
+        const { id } = req.params
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid Todo ID format' })
+        }
+
+        const { text, completed } = req.body || {}
+        const updateData = {}
+
+        if (text !== undefined) {
+            if (typeof text !== 'string' || !text.trim()) {
+                return res.status(400).json({ message: 'Todo text cannot be empty' })
+            }
+            updateData.text = text.trim()
+        }
+
+        if (completed !== undefined) {
+            updateData.completed = Boolean(completed)
+        }
 
         const updatedTodo = await Todo.findByIdAndUpdate(
-            req.params.id,
-            { text, completed },
-            { new: true },
+            id,
+            updateData,
+            { new: true, runValidators: true },
         )
 
         if (!updatedTodo) {
@@ -100,7 +128,12 @@ app.put('/api/todos/:id', async (req, res) => {
 
 app.delete('/api/todos/:id', async (req, res) => {
     try {
-        const deletedTodo = await Todo.findByIdAndDelete(req.params.id)
+        const { id } = req.params
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid Todo ID format' })
+        }
+
+        const deletedTodo = await Todo.findByIdAndDelete(id)
 
         if (!deletedTodo) {
             return res.status(404).json({ message: 'Todo not found' })
